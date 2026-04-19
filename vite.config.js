@@ -13,10 +13,6 @@ export default defineConfig({
       "/api/gfw": {
         target: "http://localhost:4000",
         changeOrigin: true
-      },
-      "/api/ships": {
-        target: "http://localhost:5000",
-        changeOrigin: true
       }
     }
   }
