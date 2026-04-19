@@ -1,9 +1,12 @@
 {
   "name": "oceanguard",
   "version": "0.1.0",
+  "description": "OceanGuard hackathon MVP for mapping animal migration intersections with ocean contamination.",
   "private": true,
   "type": "module",
+  "license": "MIT",
   "scripts": {
+    "start": "npm run dev",
     "dev": "concurrently \"npm run dev:server\" \"npm run dev:web\"",
     "dev:web": "vite",
     "dev:server": "node --watch server/index.js",
@@ -21,9 +24,9 @@
     "cors": "^2.8.5",
     "dotenv": "^16.4.5",
     "express": "^4.21.1",
-    "vite": "^5.4.10",
     "react": "^18.3.1",
-    "react-dom": "^18.3.1"
+    "react-dom": "^18.3.1",
+    "vite": "^5.4.10"
   },
   "devDependencies": {
     "autoprefixer": "^10.4.20",
