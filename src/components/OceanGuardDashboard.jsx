@@ -5,10 +5,6 @@ import WebTileLayer from "@arcgis/core/layers/WebTileLayer.js";
 import SceneView from "@arcgis/core/views/SceneView.js";
 
 const NASA_GIBS_CHLOROPHYLL_LAYER = "VIIRS_NOAA20_Chlorophyll_a_v2022.0_NRT";
-const DATA_GEOJSON_FILES = [
-  { url: "/data/whales.geojson", title: "Whale Migration Paths" },
-  { url: "/data/AustralianHumpBack.geojson", title: "Australian Humpback Migration" }
-];
 const GARBAGE_PATCHES_GEOJSON = {
   type: "FeatureCollection",
   features: [
@@ -199,6 +195,13 @@ async function createDataGeoJsonLayer({ url, title }) {
     title,
     renderer: getGeoJsonRenderer(getFirstGeometryType(geojson))
   });
+}
+
+async function getDataGeoJsonFiles() {
+  const response = await fetch("/api/geojson-files");
+  const data = await response.json();
+
+  return data.files || [];
 }
 
 export default function OceanGuardDashboard() {
@@ -434,7 +437,8 @@ export default function OceanGuardDashboard() {
   }, []);
 
   const createDataGeoJsonLayers = async (map) => {
-    const dataGeoJsonLayers = await Promise.all(DATA_GEOJSON_FILES.map(createDataGeoJsonLayer));
+    const dataGeoJsonFiles = await getDataGeoJsonFiles();
+    const dataGeoJsonLayers = await Promise.all(dataGeoJsonFiles.map(createDataGeoJsonLayer));
 
     dataGeoJsonLayers.forEach((layer) => {
       layer.visible = dataGeoJsonVisibleRef.current;
