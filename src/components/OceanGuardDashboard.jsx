@@ -72,6 +72,7 @@ export default function OceanGuardDashboard() {
   const viewRef = useRef(null);
   const contaminationLayerRef = useRef(null);
   const migrationLayerRef = useRef(null);
+  const labelLayerRef = useRef(null);
   const [contamination, setContamination] = useState([]);
   const [migrations, setMigrations] = useState([]);
   const [selectedPocketId, setSelectedPocketId] = useState(null);
@@ -135,9 +136,10 @@ export default function OceanGuardDashboard() {
 
     const contaminationLayer = new GraphicsLayer({ title: "Contamination Pockets" });
     const migrationLayer = new GraphicsLayer({ title: "Animal Migration Paths" });
+    const labelLayer = new GraphicsLayer({ title: "Garbage Patch Labels" });
     const map = new Map({
       basemap: "oceans",
-      layers: [contaminationLayer, migrationLayer]
+      layers: [contaminationLayer, migrationLayer, labelLayer]
     });
 
     const view = new SceneView({
@@ -147,19 +149,18 @@ export default function OceanGuardDashboard() {
       qualityProfile: "high",
       camera: {
         position: {
-          longitude: -124.5,
-          latitude: 35.3,
-          z: 2500000
+          longitude: -155.0,
+          latitude: 15.0,
+          z: 14500000
         },
-        heading: 12,
-        tilt: 42
+        heading: 0,
+        tilt: 18
       },
       environment: {
         atmosphereEnabled: true,
-        starsEnabled: true,
+        starsEnabled: false,
         lighting: {
-          directShadowsEnabled: true,
-          date: new Date()
+          type: "virtual"
         }
       },
       popup: {
@@ -186,7 +187,7 @@ export default function OceanGuardDashboard() {
       const graphic = pocketHit.graphic;
       setSelectedPocketId(graphic.attributes.id);
       view.popup.open({
-        title: `${graphic.attributes.type} pocket`,
+        title: graphic.attributes.name || `${graphic.attributes.type} pocket`,
         location: event.mapPoint,
         content: `
           <strong>Type:</strong> ${graphic.attributes.type}<br />
@@ -199,6 +200,7 @@ export default function OceanGuardDashboard() {
     viewRef.current = view;
     contaminationLayerRef.current = contaminationLayer;
     migrationLayerRef.current = migrationLayer;
+    labelLayerRef.current = labelLayer;
 
     return () => {
       clickHandle.remove();
@@ -206,22 +208,26 @@ export default function OceanGuardDashboard() {
       viewRef.current = null;
       contaminationLayerRef.current = null;
       migrationLayerRef.current = null;
+      labelLayerRef.current = null;
     };
   }, []);
 
   useEffect(() => {
     const contaminationLayer = contaminationLayerRef.current;
     const migrationLayer = migrationLayerRef.current;
+    const labelLayer = labelLayerRef.current;
 
-    if (!contaminationLayer || !migrationLayer) {
+    if (!contaminationLayer || !migrationLayer || !labelLayer) {
       return;
     }
 
     contaminationLayer.removeAll();
     migrationLayer.removeAll();
+    labelLayer.removeAll();
 
     contamination.forEach((pocket) => {
       const selected = selectedPocketId === pocket.id;
+      const isGarbagePatch = pocket.category === "garbage-patch";
 
       contaminationLayer.add(
         new Graphic({
@@ -232,14 +238,53 @@ export default function OceanGuardDashboard() {
           },
           symbol: {
             type: "simple-fill",
-            color: selected ? [255, 102, 0, 0.55] : [232, 72, 45, 0.35],
+            color: isGarbagePatch
+              ? selected
+                ? [245, 158, 11, 0.65]
+                : [245, 158, 11, 0.38]
+              : selected
+                ? [255, 102, 0, 0.55]
+                : [232, 72, 45, 0.35],
             outline: {
-              color: selected ? [172, 52, 0, 1] : [184, 53, 33, 0.9],
+              color: isGarbagePatch
+                ? [146, 64, 14, selected ? 1 : 0.9]
+                : selected
+                  ? [172, 52, 0, 1]
+                  : [184, 53, 33, 0.9],
               width: selected ? 2 : 1
             }
           }
         })
       );
+
+      if (isGarbagePatch && pocket.labelPoint) {
+        labelLayer.add(
+          new Graphic({
+            geometry: {
+              type: "point",
+              longitude: pocket.labelPoint[0],
+              latitude: pocket.labelPoint[1],
+              spatialReference: { wkid: 4326 }
+            },
+            attributes: {
+              id: `${pocket.id}-label`,
+              layerType: "label"
+            },
+            symbol: {
+              type: "text",
+              text: pocket.name,
+              color: [63, 38, 12, 1],
+              haloColor: [255, 247, 237, 0.9],
+              haloSize: 1.5,
+              font: {
+                size: 11,
+                weight: "bold",
+                family: "Avenir Next"
+              }
+            }
+          })
+        );
+      }
     });
 
     migrations.forEach((migration) => {

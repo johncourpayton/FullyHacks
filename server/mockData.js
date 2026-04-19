@@ -1,7 +1,122 @@
 export const contaminationPockets = [
   {
+    id: "garbage-patch-north-pacific",
+    name: "Great Pacific Garbage Patch",
+    type: "Plastic Garbage Patch",
+    severity: 10,
+    category: "garbage-patch",
+    description:
+      "Largest known offshore plastic accumulation zone, located between Hawaii and California within the North Pacific Subtropical Gyre.",
+    geometry: {
+      type: "Polygon",
+      coordinates: [
+        [
+          [-160.0, 25.0],
+          [-132.0, 25.0],
+          [-124.0, 38.0],
+          [-150.0, 44.0],
+          [-166.0, 36.0],
+          [-160.0, 25.0]
+        ]
+      ]
+    },
+    labelPoint: [-146.0, 34.0]
+  },
+  {
+    id: "garbage-patch-south-pacific",
+    name: "South Pacific Garbage Patch",
+    type: "Plastic Garbage Patch",
+    severity: 8,
+    category: "garbage-patch",
+    description:
+      "Modeled plastic accumulation zone in the South Pacific gyre, west of South America and east of Oceania.",
+    geometry: {
+      type: "Polygon",
+      coordinates: [
+        [
+          [-122.0, -44.0],
+          [-88.0, -43.0],
+          [-82.0, -28.0],
+          [-106.0, -19.0],
+          [-132.0, -28.0],
+          [-122.0, -44.0]
+        ]
+      ]
+    },
+    labelPoint: [-108.0, -33.0]
+  },
+  {
+    id: "garbage-patch-north-atlantic",
+    name: "North Atlantic Garbage Patch",
+    type: "Plastic Garbage Patch",
+    severity: 8,
+    category: "garbage-patch",
+    description:
+      "Plastic accumulation zone associated with the North Atlantic subtropical gyre.",
+    geometry: {
+      type: "Polygon",
+      coordinates: [
+        [
+          [-58.0, 20.0],
+          [-30.0, 18.0],
+          [-18.0, 32.0],
+          [-34.0, 44.0],
+          [-55.0, 39.0],
+          [-58.0, 20.0]
+        ]
+      ]
+    },
+    labelPoint: [-42.0, 31.0]
+  },
+  {
+    id: "garbage-patch-south-atlantic",
+    name: "South Atlantic Garbage Patch",
+    type: "Plastic Garbage Patch",
+    severity: 7,
+    category: "garbage-patch",
+    description:
+      "Plastic accumulation zone associated with the South Atlantic subtropical gyre.",
+    geometry: {
+      type: "Polygon",
+      coordinates: [
+        [
+          [-42.0, -39.0],
+          [-10.0, -40.0],
+          [2.0, -27.0],
+          [-17.0, -16.0],
+          [-44.0, -21.0],
+          [-42.0, -39.0]
+        ]
+      ]
+    },
+    labelPoint: [-22.0, -29.0]
+  },
+  {
+    id: "garbage-patch-indian-ocean",
+    name: "Indian Ocean Garbage Patch",
+    type: "Plastic Garbage Patch",
+    severity: 8,
+    category: "garbage-patch",
+    description:
+      "Plastic accumulation zone associated with the Indian Ocean subtropical gyre.",
+    geometry: {
+      type: "Polygon",
+      coordinates: [
+        [
+          [53.0, -38.0],
+          [92.0, -38.0],
+          [101.0, -24.0],
+          [78.0, -13.0],
+          [55.0, -20.0],
+          [53.0, -38.0]
+        ]
+      ]
+    },
+    labelPoint: [76.0, -27.0]
+  },
+  {
     id: "pocket-001",
-    type: "Plastic",
+    type: "Plastic Hotspot",
     severity: 8,
     description: "High-density floating plastic debris field near a known turtle corridor.",
     geometry: {
