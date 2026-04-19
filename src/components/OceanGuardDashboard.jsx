@@ -1,10 +1,19 @@
 import { useEffect, useRef, useState } from "react";
+import esriRequest from "@arcgis/core/request.js";
+import BaseTileLayer from "@arcgis/core/layers/BaseTileLayer.js";
 import GeoJSONLayer from "@arcgis/core/layers/GeoJSONLayer.js";
 import Map from "@arcgis/core/Map.js";
+import TileInfo from "@arcgis/core/layers/support/TileInfo.js";
 import WebTileLayer from "@arcgis/core/layers/WebTileLayer.js";
 import SceneView from "@arcgis/core/views/SceneView.js";
 
 const NASA_GIBS_CHLOROPHYLL_LAYER = "VIIRS_NOAA20_Chlorophyll_a_v2022.0_NRT";
+const GFW_API_KEY = import.meta.env.VITE_GFW_API_KEY;
+const GFW_HEATMAP_STYLE = import.meta.env.VITE_GFW_HEATMAP_STYLE;
+const GFW_HEATMAP_BASE_URL = "https://gateway.api.globalfishingwatch.org/v3/4wings/tile/heatmap";
+const GFW_HEATMAP_QUERY =
+  "format=PNG&interval=DAY&datasets[0]=public-global-presence:latest&date-range=2024-01-01,2024-01-07";
+const GFW_TILE_INFO = TileInfo.create({ numLODs: 13 });
 const GARBAGE_PATCHES_GEOJSON = {
   type: "FeatureCollection",
   features: [
@@ -204,15 +213,73 @@ async function getDataGeoJsonFiles() {
   return data.files || [];
 }
 
+function createTransparentTile(size = 256) {
+  const canvas = document.createElement("canvas");
+  canvas.width = size;
+  canvas.height = size;
+
+  return canvas;
+}
+
+function getGfwHeatmapQuery() {
+  if (!GFW_HEATMAP_STYLE) {
+    return GFW_HEATMAP_QUERY;
+  }
+
+  return `${GFW_HEATMAP_QUERY}&style=${encodeURIComponent(GFW_HEATMAP_STYLE)}`;
+}
+
+const GlobalFishingWatchHeatmapLayer = BaseTileLayer.createSubclass({
+  properties: {
+    apiKey: null,
+    urlTemplate: null
+  },
+
+  getTileUrl(level, row, col) {
+    return this.urlTemplate
+      .replace("{z}", level)
+      .replace("{x}", col)
+      .replace("{y}", row);
+  },
+
+  fetchTile(level, row, col, options) {
+    const tileSize = Array.isArray(this.tileInfo.size)
+      ? this.tileInfo.size[0]
+      : this.tileInfo.size || 256;
+
+    if (!this.apiKey) {
+      return Promise.resolve(createTransparentTile(tileSize));
+    }
+
+    return esriRequest(this.getTileUrl(level, row, col), {
+      responseType: "image",
+      signal: options?.signal,
+      headers: {
+        Authorization: `Bearer ${this.apiKey}`
+      }
+    })
+      .then((response) => {
+        const canvas = createTransparentTile(tileSize);
+        const context = canvas.getContext("2d");
+        context.drawImage(response.data, 0, 0, tileSize, tileSize);
+
+        return canvas;
+      })
+      .catch(() => createTransparentTile(tileSize));
+  }
+});
+
 export default function OceanGuardDashboard() {
   const mapRef = useRef(null);
   const viewRef = useRef(null);
   const chlorophyllLayerRef = useRef(null);
+  const gfwVesselLayerRef = useRef(null);
   const garbagePatchLayerRef = useRef(null);
   const shipTrafficLayerRef = useRef(null);
   const dataGeoJsonLayersRef = useRef([]);
   const dataGeoJsonVisibleRef = useRef(true);
   const [chlorophyllVisible, setChlorophyllVisible] = useState(true);
+  const [gfwVesselVisible, setGfwVesselVisible] = useState(false);
   const [garbagePatchesVisible, setGarbagePatchesVisible] = useState(false);
   const [shipTrafficVisible, setShipTrafficVisible] = useState(false);
   const [dataGeoJsonVisible, setDataGeoJsonVisible] = useState(true);
@@ -233,6 +300,16 @@ export default function OceanGuardDashboard() {
       copyright: "NASA GIBS / OB.DAAC"
     });
     chlorophyllLayerRef.current = chlorophyllLayer;
+
+    const gfwVesselLayer = new GlobalFishingWatchHeatmapLayer({
+      title: "Global Fishing Watch Vessel Activity",
+      apiKey: GFW_API_KEY,
+      opacity: 0.55,
+      visible: false,
+      tileInfo: GFW_TILE_INFO,
+      urlTemplate: `${GFW_HEATMAP_BASE_URL}/{z}/{x}/{y}?${getGfwHeatmapQuery()}`
+    });
+    gfwVesselLayerRef.current = gfwVesselLayer;
 
     const garbagePatchUrl = URL.createObjectURL(
       new Blob([JSON.stringify(GARBAGE_PATCHES_GEOJSON)], {
@@ -388,7 +465,7 @@ export default function OceanGuardDashboard() {
 
     const map = new Map({
       basemap: "oceans",
-      layers: [chlorophyllLayer, garbagePatchLayer, shipTrafficLayer]
+      layers: [gfwVesselLayer, chlorophyllLayer, garbagePatchLayer, shipTrafficLayer]
     });
 
     const view = new SceneView({
@@ -429,6 +506,7 @@ export default function OceanGuardDashboard() {
       view.destroy();
       viewRef.current = null;
       chlorophyllLayerRef.current = null;
+      gfwVesselLayerRef.current = null;
       garbagePatchLayerRef.current = null;
       shipTrafficLayerRef.current = null;
       dataGeoJsonLayersRef.current = [];
@@ -454,6 +532,15 @@ export default function OceanGuardDashboard() {
 
     if (chlorophyllLayerRef.current) {
       chlorophyllLayerRef.current.visible = nextVisible;
+    }
+  };
+
+  const toggleGfwVesselLayer = () => {
+    const nextVisible = !gfwVesselVisible;
+    setGfwVesselVisible(nextVisible);
+
+    if (gfwVesselLayerRef.current) {
+      gfwVesselLayerRef.current.visible = nextVisible;
     }
   };
 
@@ -514,6 +601,17 @@ export default function OceanGuardDashboard() {
             }`}
           >
             Chlorophyll {chlorophyllVisible ? "On" : "Off"}
+          </button>
+          <button
+            type="button"
+            onClick={toggleGfwVesselLayer}
+            className={`mt-3 w-full rounded-md border px-4 py-3 text-sm font-semibold transition ${
+              gfwVesselVisible
+                ? "border-cyan-700 bg-cyan-700 text-white"
+                : "border-zinc-300 bg-white text-zinc-700"
+            }`}
+          >
+            Toggle GFW Vessel Activity
           </button>
           <button
             type="button"
