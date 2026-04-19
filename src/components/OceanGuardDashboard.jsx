@@ -1,5 +1,4 @@
 import { useEffect, useRef, useState } from "react";
-import esriRequest from "@arcgis/core/request.js";
 import BaseTileLayer from "@arcgis/core/layers/BaseTileLayer.js";
 import GeoJSONLayer from "@arcgis/core/layers/GeoJSONLayer.js";
 import Map from "@arcgis/core/Map.js";
@@ -8,11 +7,6 @@ import WebTileLayer from "@arcgis/core/layers/WebTileLayer.js";
 import SceneView from "@arcgis/core/views/SceneView.js";
 
 const NASA_GIBS_CHLOROPHYLL_LAYER = "VIIRS_NOAA20_Chlorophyll_a_v2022.0_NRT";
-const GFW_API_KEY = import.meta.env.VITE_GFW_API_KEY;
-const GFW_HEATMAP_STYLE = import.meta.env.VITE_GFW_HEATMAP_STYLE;
-const GFW_HEATMAP_BASE_URL = "https://gateway.api.globalfishingwatch.org/v3/4wings/tile/heatmap";
-const GFW_HEATMAP_QUERY =
-  "format=PNG&interval=DAY&datasets[0]=public-global-presence:latest&date-range=2024-01-01,2024-01-07";
 const GFW_TILE_INFO = TileInfo.create({ numLODs: 13 });
 const GARBAGE_PATCHES_GEOJSON = {
   type: "FeatureCollection",
@@ -221,17 +215,8 @@ function createTransparentTile(size = 256) {
   return canvas;
 }
 
-function getGfwHeatmapQuery() {
-  if (!GFW_HEATMAP_STYLE) {
-    return GFW_HEATMAP_QUERY;
-  }
-
-  return `${GFW_HEATMAP_QUERY}&style=${encodeURIComponent(GFW_HEATMAP_STYLE)}`;
-}
-
 const GlobalFishingWatchHeatmapLayer = BaseTileLayer.createSubclass({
   properties: {
-    apiKey: null,
     urlTemplate: null
   },
 
@@ -247,21 +232,21 @@ const GlobalFishingWatchHeatmapLayer = BaseTileLayer.createSubclass({
       ? this.tileInfo.size[0]
       : this.tileInfo.size || 256;
 
-    if (!this.apiKey) {
-      return Promise.resolve(createTransparentTile(tileSize));
-    }
-
-    return esriRequest(this.getTileUrl(level, row, col), {
-      responseType: "image",
-      signal: options?.signal,
-      headers: {
-        Authorization: `Bearer ${this.apiKey}`
-      }
+    return fetch(this.getTileUrl(level, row, col), {
+      signal: options?.signal
     })
       .then((response) => {
+        if (!response.ok) {
+          throw new Error(`GFW tile request failed with ${response.status}`);
+        }
+
+        return response.blob();
+      })
+      .then((blob) => createImageBitmap(blob))
+      .then((image) => {
         const canvas = createTransparentTile(tileSize);
         const context = canvas.getContext("2d");
-        context.drawImage(response.data, 0, 0, tileSize, tileSize);
+        context.drawImage(image, 0, 0, tileSize, tileSize);
 
         return canvas;
       })
@@ -303,11 +288,10 @@ export default function OceanGuardDashboard() {
 
     const gfwVesselLayer = new GlobalFishingWatchHeatmapLayer({
       title: "Global Fishing Watch Vessel Activity",
-      apiKey: GFW_API_KEY,
       opacity: 0.55,
       visible: false,
       tileInfo: GFW_TILE_INFO,
-      urlTemplate: `${GFW_HEATMAP_BASE_URL}/{z}/{x}/{y}?${getGfwHeatmapQuery()}`
+      urlTemplate: "/api/gfw/heatmap/{z}/{x}/{y}"
     });
     gfwVesselLayerRef.current = gfwVesselLayer;
 
