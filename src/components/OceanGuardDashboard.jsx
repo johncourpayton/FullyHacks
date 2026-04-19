@@ -1,6 +1,10 @@
 import { useEffect, useRef } from "react";
+import MapImageLayer from "@arcgis/core/layers/MapImageLayer.js";
 import Map from "@arcgis/core/Map.js";
 import SceneView from "@arcgis/core/views/SceneView.js";
+
+const NOAA_CHLOROPHYLL_URL =
+  "https://coast.noaa.gov/arcgis/rest/services/OceanReports/Chlorophyll_a_AnnualMean/MapServer";
 
 export default function OceanGuardDashboard() {
   const mapRef = useRef(null);
@@ -11,8 +15,23 @@ export default function OceanGuardDashboard() {
       return undefined;
     }
 
+    const chlorophyllLayer = new MapImageLayer({
+      url: NOAA_CHLOROPHYLL_URL,
+      title: "NOAA Chlorophyll-a Annual Mean",
+      opacity: 0.62,
+      visible: true,
+      sublayers: [
+        {
+          id: 0,
+          title: "Chlorophyll-a Annual Mean",
+          visible: true
+        }
+      ]
+    });
+
     const map = new Map({
-      basemap: "oceans"
+      basemap: "oceans",
+      layers: [chlorophyllLayer]
     });
 
     const view = new SceneView({
