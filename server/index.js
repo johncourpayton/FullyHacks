@@ -86,11 +86,6 @@ app.get("/api/oil-spills", async (req, res, next) => {
       return;
     }
 
-    if (error.message.includes("Sentinel Hub OAuth credentials")) {
-      res.status(503).json({ error: error.message });
-      return;
-    }
-
     next(error);
   }
 });

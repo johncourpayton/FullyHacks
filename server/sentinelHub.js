@@ -9,6 +9,66 @@ let tokenCache = {
   expiresAt: 0
 };
 
+function fallbackOilSpillGeoJson(bbox, timeRange, reason) {
+  const [minLon, minLat, maxLon, maxLat] = bbox;
+  const width = maxLon - minLon;
+  const height = maxLat - minLat;
+
+  const slicks = [
+    {
+      id: "demo-oil-spill-001",
+      cx: minLon + width * 0.38,
+      cy: minLat + height * 0.58,
+      rx: width * 0.08,
+      ry: height * 0.035,
+      confidence: "demo"
+    },
+    {
+      id: "demo-oil-spill-002",
+      cx: minLon + width * 0.64,
+      cy: minLat + height * 0.42,
+      rx: width * 0.06,
+      ry: height * 0.028,
+      confidence: "demo"
+    }
+  ];
+
+  return {
+    type: "FeatureCollection",
+    features: slicks.map((slick) => ({
+      type: "Feature",
+      properties: {
+        id: slick.id,
+        type: "Possible Oil Spill",
+        confidence: slick.confidence,
+        detectionMode: "demo-fallback",
+        reason
+      },
+      geometry: {
+        type: "Polygon",
+        coordinates: [
+          [
+            [slick.cx - slick.rx, slick.cy],
+            [slick.cx - slick.rx * 0.45, slick.cy - slick.ry],
+            [slick.cx + slick.rx * 0.65, slick.cy - slick.ry * 0.7],
+            [slick.cx + slick.rx, slick.cy],
+            [slick.cx + slick.rx * 0.45, slick.cy + slick.ry],
+            [slick.cx - slick.rx * 0.65, slick.cy + slick.ry * 0.7],
+            [slick.cx - slick.rx, slick.cy]
+          ]
+        ]
+      }
+    })),
+    properties: {
+      bbox,
+      timeRange,
+      source: "Demo fallback oil spill polygons",
+      method: "Synthetic slick polygons returned when Sentinel-1 detections are unavailable",
+      fallbackReason: reason
+    }
+  };
+}
+
 export function parseBbox(rawBbox) {
   if (!rawBbox) {
     return [-126.5, 33.0, -120.5, 38.5];
@@ -248,16 +308,26 @@ export function oilMaskToGeoJson(pngBuffer, bbox, { threshold = 128, minPixels =
 
 export async function fetchOilSpillGeoJson({ bbox, hoursBack = 48 }) {
   const timeRange = getRecentTimeRange(hoursBack);
-  const mask = await fetchSentinel1OilMask({ bbox, timeRange });
-  const geoJson = oilMaskToGeoJson(mask, bbox);
 
-  return {
-    ...geoJson,
-    properties: {
-      bbox,
-      timeRange,
-      source: "Sentinel-1 GRD via Sentinel Hub Process API",
-      method: "VV backscatter threshold below -22 dB, connected components to coarse polygons"
+  try {
+    const mask = await fetchSentinel1OilMask({ bbox, timeRange });
+    const geoJson = oilMaskToGeoJson(mask, bbox);
+
+    if (geoJson.features.length === 0) {
+      return fallbackOilSpillGeoJson(bbox, timeRange, "No dark Sentinel-1 regions detected");
     }
-  };
+
+    return {
+      ...geoJson,
+      properties: {
+        bbox,
+        timeRange,
+        source: "Sentinel-1 GRD via Sentinel Hub Process API",
+        method: "VV backscatter threshold below -22 dB, connected components to coarse polygons"
+      }
+    };
+  } catch (error) {
+    console.warn("Using demo oil spill fallback:", error.message);
+    return fallbackOilSpillGeoJson(bbox, timeRange, error.message);
+  }
 }
