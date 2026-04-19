@@ -5,7 +5,7 @@ import Polyline from "@arcgis/core/geometry/Polyline.js";
 import * as geometryEngine from "@arcgis/core/geometry/geometryEngine.js";
 import GraphicsLayer from "@arcgis/core/layers/GraphicsLayer.js";
 import Map from "@arcgis/core/Map.js";
-import MapView from "@arcgis/core/views/MapView.js";
+import SceneView from "@arcgis/core/views/SceneView.js";
 
 const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || "http://localhost:4000";
 
@@ -118,11 +118,28 @@ export default function OceanGuardDashboard() {
       layers: [contaminationLayer, migrationLayer]
     });
 
-    const view = new MapView({
+    const view = new SceneView({
       container: mapRef.current,
       map,
-      center: [-124.5, 35.3],
-      zoom: 6,
+      viewingMode: "global",
+      qualityProfile: "high",
+      camera: {
+        position: {
+          longitude: -124.5,
+          latitude: 35.3,
+          z: 2500000
+        },
+        heading: 12,
+        tilt: 42
+      },
+      environment: {
+        atmosphereEnabled: true,
+        starsEnabled: true,
+        lighting: {
+          directShadowsEnabled: true,
+          date: new Date()
+        }
+      },
       popup: {
         dockEnabled: true,
         dockOptions: {
