@@ -1,7 +1,7 @@
 {
   "name": "oceanguard",
   "version": "0.1.0",
-  "description": "OceanGuard hackathon MVP for mapping animal migration intersections with ocean contamination.",
+  "description": "OceanGuard hackathon MVP shell with a daytime ArcGIS globe.",
   "private": true,
   "type": "module",
   "license": "MIT",
@@ -11,20 +11,15 @@
     "dev:web": "vite",
     "dev:server": "node --watch server/index.js",
     "build": "vite build",
-    "preview": "vite preview",
-    "prisma:generate": "prisma generate",
-    "prisma:migrate": "prisma migrate dev",
-    "prisma:studio": "prisma studio"
+    "preview": "vite preview"
   },
   "dependencies": {
     "@arcgis/core": "^4.31.0",
-    "@prisma/client": "^5.22.0",
     "@vitejs/plugin-react": "^4.3.3",
     "concurrently": "^9.1.0",
     "cors": "^2.8.5",
     "dotenv": "^16.4.5",
     "express": "^4.21.1",
-    "pngjs": "^7.0.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "vite": "^5.4.10"
@@ -32,7 +27,6 @@
   "devDependencies": {
     "autoprefixer": "^10.4.20",
     "postcss": "^8.4.49",
-    "prisma": "^5.22.0",
     "tailwindcss": "^3.4.15"
   }
 }
