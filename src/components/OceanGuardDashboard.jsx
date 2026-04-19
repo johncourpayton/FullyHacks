@@ -1,10 +1,9 @@
 import { useEffect, useRef } from "react";
-import MapImageLayer from "@arcgis/core/layers/MapImageLayer.js";
+import WMSLayer from "@arcgis/core/layers/WMSLayer.js";
 import Map from "@arcgis/core/Map.js";
 import SceneView from "@arcgis/core/views/SceneView.js";
 
-const NOAA_CHLOROPHYLL_URL =
-  "https://coast.noaa.gov/arcgis/rest/services/OceanReports/Chlorophyll_a_AnnualMean/MapServer";
+const NASA_GIBS_WMS_URL = "https://gibs.earthdata.nasa.gov/wms/epsg4326/best/wms.cgi";
 
 export default function OceanGuardDashboard() {
   const mapRef = useRef(null);
@@ -15,15 +14,15 @@ export default function OceanGuardDashboard() {
       return undefined;
     }
 
-    const chlorophyllLayer = new MapImageLayer({
-      url: NOAA_CHLOROPHYLL_URL,
-      title: "NOAA Chlorophyll-a Annual Mean",
-      opacity: 0.62,
+    const chlorophyllLayer = new WMSLayer({
+      url: NASA_GIBS_WMS_URL,
+      title: "NASA GIBS Global Chlorophyll-a",
+      opacity: 0.72,
       visible: true,
       sublayers: [
         {
-          id: 0,
-          title: "Chlorophyll-a Annual Mean",
+          name: "VIIRS_SNPP_L2_Chlorophyll_A",
+          title: "Chlorophyll-a VIIRS/Suomi NPP",
           visible: true
         }
       ]
