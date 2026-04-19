@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>FullyHacks Globe</title>
+    <link rel="stylesheet" href="https://js.arcgis.com/4.26/esri/themes/light/main.css" />
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <div class="app-shell">
+      <header class="hero">
+        <div>
+          <h1>FullyHacks Globe</h1>
+          <p>Interactive global visualization powered by the ArcGIS JavaScript SDK.</p>
+          <button id="flyBtn">Fly to New York</button>
+        </div>
+      </header>
+
+      <main class="view-container">
+        <div id="viewDiv"></div>
+      </main>
+    </div>
+
+    <script src="https://js.arcgis.com/4.26/"></script>
+    <script>
+      require([
+        'esri/Map',
+        'esri/views/SceneView'
+      ], function (Map, SceneView) {
+        const map = new Map({
+          basemap: 'satellite',
+          ground: 'world-elevation'
+        });
+
+        const view = new SceneView({
+          container: 'viewDiv',
+          map,
+          qualityProfile: 'high',
+          environment: {
+            lighting: {
+              directShadowsEnabled: true,
+              date: new Date()
+            }
+          },
+          camera: {
+            position: {
+              longitude: 0,
+              latitude: 20,
+              z: 28000000
+            },
+            tilt: 40
+          }
+        });
+
+        document.getElementById('flyBtn').addEventListener('click', function () {
+          view.goTo({
+            target: {
+              latitude: 40.7128,
+              longitude: -74.006,
+              z: 1500000
+            },
+            tilt: 65
+          });
+        });
+      });
+    </script>
+  </body>
+</html>
