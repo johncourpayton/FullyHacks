@@ -320,9 +320,22 @@ export default function OceanGuardDashboard() {
     });
     shipTrafficLayerRef.current = shipTrafficLayer;
 
+    const whaleLayer = new GeoJSONLayer({
+      url: "/data/whales.geojson",
+      title: "Whale Migration Paths",
+      renderer: {
+        type: "simple",
+        symbol: {
+          type: "simple-line",
+          color: [37, 99, 235, 0.95],
+          width: 3
+        }
+      }
+    });
+
     const map = new Map({
       basemap: "oceans",
-      layers: [chlorophyllLayer, garbagePatchLayer, shipTrafficLayer]
+      layers: [chlorophyllLayer, garbagePatchLayer, shipTrafficLayer, whaleLayer]
     });
 
     const view = new SceneView({
