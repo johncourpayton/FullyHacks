@@ -9,7 +9,16 @@ let tokenCache = {
   expiresAt: 0
 };
 
-function fallbackOilSpillGeoJson(bbox, timeRange, reason) {
+export const oilSpillRegions = [
+  { name: "California Coast", bbox: [-126.5, 33.0, -120.5, 38.5] },
+  { name: "Gulf of Mexico", bbox: [-98.5, 18.0, -80.0, 31.0] },
+  { name: "North Sea", bbox: [-5.5, 51.0, 9.5, 61.5] },
+  { name: "Persian Gulf", bbox: [47.0, 24.0, 57.5, 30.5] },
+  { name: "Gulf of Guinea", bbox: [-8.0, -2.5, 10.5, 7.0] },
+  { name: "South China Sea", bbox: [104.0, 4.0, 121.0, 23.0] }
+];
+
+function fallbackOilSpillGeoJson(bbox, timeRange, reason, regionName = "Custom Region") {
   const [minLon, minLat, maxLon, maxLat] = bbox;
   const width = maxLon - minLon;
   const height = maxLat - minLat;
@@ -38,7 +47,8 @@ function fallbackOilSpillGeoJson(bbox, timeRange, reason) {
     features: slicks.map((slick) => ({
       type: "Feature",
       properties: {
-        id: slick.id,
+        id: `${regionName.toLowerCase().replaceAll(" ", "-")}-${slick.id}`,
+        region: regionName,
         type: "Possible Oil Spill",
         confidence: slick.confidence,
         detectionMode: "demo-fallback",
@@ -62,6 +72,7 @@ function fallbackOilSpillGeoJson(bbox, timeRange, reason) {
     properties: {
       bbox,
       timeRange,
+      region: regionName,
       source: "Demo fallback oil spill polygons",
       method: "Synthetic slick polygons returned when Sentinel-1 detections are unavailable",
       fallbackReason: reason
@@ -306,7 +317,7 @@ export function oilMaskToGeoJson(pngBuffer, bbox, { threshold = 128, minPixels =
   };
 }
 
-export async function fetchOilSpillGeoJson({ bbox, hoursBack = 48 }) {
+export async function fetchOilSpillGeoJson({ bbox, hoursBack = 48, regionName = "Custom Region" }) {
   const timeRange = getRecentTimeRange(hoursBack);
 
   try {
@@ -314,20 +325,58 @@ export async function fetchOilSpillGeoJson({ bbox, hoursBack = 48 }) {
     const geoJson = oilMaskToGeoJson(mask, bbox);
 
     if (geoJson.features.length === 0) {
-      return fallbackOilSpillGeoJson(bbox, timeRange, "No dark Sentinel-1 regions detected");
+      return fallbackOilSpillGeoJson(
+        bbox,
+        timeRange,
+        "No dark Sentinel-1 regions detected",
+        regionName
+      );
     }
 
     return {
       ...geoJson,
+      features: geoJson.features.map((feature, index) => ({
+        ...feature,
+        properties: {
+          ...feature.properties,
+          id: `${regionName.toLowerCase().replaceAll(" ", "-")}-sentinel-${index}`,
+          region: regionName,
+          detectionMode: "sentinel-1-threshold"
+        }
+      })),
       properties: {
         bbox,
         timeRange,
+        region: regionName,
         source: "Sentinel-1 GRD via Sentinel Hub Process API",
         method: "VV backscatter threshold below -22 dB, connected components to coarse polygons"
       }
     };
   } catch (error) {
-    console.warn("Using demo oil spill fallback:", error.message);
-    return fallbackOilSpillGeoJson(bbox, timeRange, error.message);
+    console.warn(`Using demo oil spill fallback for ${regionName}:`, error.message);
+    return fallbackOilSpillGeoJson(bbox, timeRange, error.message, regionName);
   }
+}
+
+export async function fetchRegionalOilSpillGeoJson({ hoursBack = 48 }) {
+  const collections = await Promise.all(
+    oilSpillRegions.map((region) =>
+      fetchOilSpillGeoJson({
+        bbox: region.bbox,
+        hoursBack,
+        regionName: region.name
+      })
+    )
+  );
+
+  return {
+    type: "FeatureCollection",
+    features: collections.flatMap((collection) => collection.features),
+    properties: {
+      source: "Regional Sentinel-1 oil spill scan",
+      regions: oilSpillRegions,
+      regionCount: oilSpillRegions.length,
+      featureCount: collections.reduce((total, collection) => total + collection.features.length, 0)
+    }
+  };
 }

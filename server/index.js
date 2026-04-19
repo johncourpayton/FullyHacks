@@ -3,7 +3,7 @@ import dotenv from "dotenv";
 import express from "express";
 import { PrismaClient } from "@prisma/client";
 import { contaminationPockets, migrationPaths } from "./mockData.js";
-import { fetchOilSpillGeoJson, parseBbox } from "./sentinelHub.js";
+import { fetchOilSpillGeoJson, fetchRegionalOilSpillGeoJson, parseBbox } from "./sentinelHub.js";
 
 dotenv.config();
 
@@ -69,7 +69,6 @@ app.get("/api/migration", async (_req, res, next) => {
 
 app.get("/api/oil-spills", async (req, res, next) => {
   try {
-    const bbox = parseBbox(req.query.bbox);
     const hoursBack = Number(req.query.hoursBack || 48);
 
     if (!Number.isFinite(hoursBack) || hoursBack <= 0 || hoursBack > 168) {
@@ -77,7 +76,12 @@ app.get("/api/oil-spills", async (req, res, next) => {
       return;
     }
 
-    const geoJson = await fetchOilSpillGeoJson({ bbox, hoursBack });
+    const geoJson = req.query.bbox
+      ? await fetchOilSpillGeoJson({
+          bbox: parseBbox(req.query.bbox),
+          hoursBack
+        })
+      : await fetchRegionalOilSpillGeoJson({ hoursBack });
 
     res.json(geoJson);
   } catch (error) {
