@@ -507,13 +507,14 @@ export default function OceanGuardDashboard() {
       header: true,
       dynamicTyping: true,
       complete: async (results) => {
-        const data = results.data.filter(row => row.latitude && row.longitude);
+        // Updated to use 'location-lat' and 'location-long' as seen in the user's CSV format
+        const data = results.data.filter(row => row["location-lat"] && row["location-long"]);
         if (data.length === 0) {
-          alert("Invalid CSV format. Please ensure it has latitude and longitude columns.");
+          alert("Invalid CSV format. Please ensure it has 'location-lat' and 'location-long' columns.");
           return;
         }
 
-        const coordinates = data.map(row => [row.longitude, row.latitude]);
+        const coordinates = data.map(row => [row["location-long"], row["location-lat"]]);
         const geojson = {
           type: "FeatureCollection",
           features: [
