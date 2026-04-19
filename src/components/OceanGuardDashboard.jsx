@@ -5,6 +5,9 @@ import WebTileLayer from "@arcgis/core/layers/WebTileLayer.js";
 import SceneView from "@arcgis/core/views/SceneView.js";
 
 const NASA_GIBS_CHLOROPHYLL_LAYER = "VIIRS_NOAA20_Chlorophyll_a_v2022.0_NRT";
+import { analyzeImpact, generateMockAIReport } from "../utils/ImpactAnalysis.js";
+import Papa from "papaparse";
+
 const GARBAGE_PATCHES_GEOJSON = {
   type: "FeatureCollection",
   features: [
@@ -130,6 +133,26 @@ const GARBAGE_PATCHES_GEOJSON = {
           ]
         ]
       }
+    },
+    {
+      type: "Feature",
+      properties: {
+        name: "Southern Ocean Microplastic Accumulation",
+        ocean: "Southern Ocean",
+        description: "High density microplastic zone detected near whale feeding grounds."
+      },
+      geometry: {
+        type: "Polygon",
+        coordinates: [
+          [
+            [165, -60],
+            [180, -60],
+            [180, -70],
+            [165, -70],
+            [165, -60]
+          ]
+        ]
+      }
     }
   ]
 };
@@ -212,10 +235,14 @@ export default function OceanGuardDashboard() {
   const shipTrafficLayerRef = useRef(null);
   const dataGeoJsonLayersRef = useRef([]);
   const dataGeoJsonVisibleRef = useRef(true);
+  const fileInputRef = useRef(null);
   const [chlorophyllVisible, setChlorophyllVisible] = useState(true);
   const [garbagePatchesVisible, setGarbagePatchesVisible] = useState(false);
   const [shipTrafficVisible, setShipTrafficVisible] = useState(false);
   const [dataGeoJsonVisible, setDataGeoJsonVisible] = useState(true);
+  const [impactReport, setImpactReport] = useState("");
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [whaleData, setWhaleData] = useState(null);
 
   useEffect(() => {
     if (!mapRef.current || viewRef.current) {
@@ -446,6 +473,84 @@ export default function OceanGuardDashboard() {
 
     dataGeoJsonLayersRef.current = dataGeoJsonLayers;
     map.addMany(dataGeoJsonLayers);
+
+    // Specifically look for whale data for impact analysis
+    const whaleFile = dataGeoJsonFiles.find(f => f.url.includes("whales"));
+    if (whaleFile) {
+      const res = await fetch(whaleFile.url);
+      const data = await res.json();
+      setWhaleData(data);
+    }
+  };
+
+  const handleGenerateReport = async () => {
+    if (!whaleData) {
+      alert("No whale migration data loaded yet.");
+      return;
+    }
+
+    setIsAnalyzing(true);
+    // Simulate a bit of processing time for "AI" feel
+    setTimeout(() => {
+      const analysis = analyzeImpact(whaleData, GARBAGE_PATCHES_GEOJSON);
+      const report = generateMockAIReport(analysis);
+      setImpactReport(report);
+      setIsAnalyzing(false);
+    }, 1500);
+  };
+
+  const handleCsvUpload = (event) => {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    Papa.parse(file, {
+      header: true,
+      dynamicTyping: true,
+      complete: async (results) => {
+        const data = results.data.filter(row => row.latitude && row.longitude);
+        if (data.length === 0) {
+          alert("Invalid CSV format. Please ensure it has latitude and longitude columns.");
+          return;
+        }
+
+        const coordinates = data.map(row => [row.longitude, row.latitude]);
+        const geojson = {
+          type: "FeatureCollection",
+          features: [
+            {
+              type: "Feature",
+              properties: { name: file.name.replace(".csv", "") },
+              geometry: {
+                type: "LineString",
+                coordinates
+              }
+            }
+          ]
+        };
+
+        const blob = new Blob([JSON.stringify(geojson)], { type: "application/geo+json" });
+        const url = URL.createObjectURL(blob);
+        
+        const newLayer = new GeoJSONLayer({
+          url,
+          title: `Uploaded: ${file.name}`,
+          renderer: {
+            type: "simple",
+            symbol: {
+              type: "simple-line",
+              color: [255, 0, 150, 0.9], // Bright pink for uploaded paths
+              width: 4
+            }
+          }
+        });
+
+        if (viewRef.current?.map) {
+          viewRef.current.map.add(newLayer);
+          viewRef.current.goTo(newLayer.fullExtent);
+          alert(`Successfully uploaded ${file.name} and mapped ${data.length} points!`);
+        }
+      }
+    });
   };
 
   const toggleChlorophyll = () => {
@@ -548,6 +653,60 @@ export default function OceanGuardDashboard() {
           >
             Toggle GeoJSON Layers
           </button>
+        </div>
+
+        <div className="border-b border-zinc-200 p-6">
+          <h2 className="text-sm font-semibold text-zinc-800">Impact Analysis</h2>
+          <button
+            type="button"
+            onClick={handleGenerateReport}
+            disabled={isAnalyzing}
+            className={`mt-4 w-full rounded-md border px-4 py-3 text-sm font-semibold transition ${
+              isAnalyzing
+                ? "bg-zinc-100 text-zinc-400 border-zinc-200 cursor-not-allowed"
+                : "border-teal-700 bg-white text-teal-700 hover:bg-teal-50"
+            }`}
+          >
+            {isAnalyzing ? "Analyzing Ecosystem..." : "Generate AI Impact Report"}
+          </button>
+
+          {impactReport && (
+            <div className="mt-4 rounded-lg bg-zinc-50 p-4 border border-zinc-200">
+              <div className="flex justify-between items-center mb-2">
+                <span className="text-xs font-bold uppercase text-zinc-400 tracking-wider">Analysis Result</span>
+                <button 
+                  onClick={() => setImpactReport("")}
+                  className="text-xs text-zinc-400 hover:text-zinc-600"
+                >
+                  Clear
+                </button>
+              </div>
+              <div className="text-sm leading-relaxed text-zinc-700 whitespace-pre-wrap max-h-64 overflow-y-auto font-serif">
+                {impactReport}
+              </div>
+            </div>
+          )}
+        </div>
+
+        <div className="border-b border-zinc-200 p-6">
+          <h2 className="text-sm font-semibold text-zinc-800">Data Management</h2>
+          <input
+            type="file"
+            ref={fileInputRef}
+            onChange={handleCsvUpload}
+            accept=".csv"
+            className="hidden"
+          />
+          <button
+            type="button"
+            onClick={() => fileInputRef.current.click()}
+            className="mt-4 w-full rounded-md border border-zinc-300 bg-white px-4 py-3 text-sm font-semibold text-zinc-700 transition hover:bg-zinc-50"
+          >
+            Upload Migration CSV
+          </button>
+          <p className="mt-2 text-xs text-zinc-500 text-center">
+            Upload CSV with latitude and longitude columns
+          </p>
         </div>
 
         <div className="min-h-0 flex-1 overflow-y-auto p-6">
